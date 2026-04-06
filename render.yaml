@@ -20,10 +20,7 @@ services:
           name: dvsa-drivetime-db
           property: connectionString
       - key: CLIENT_URL
-        fromService:
-          type: web
-          name: dvsa-drivetime-client
-          property: url
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: STRIPE_SECRET_KEY
@@ -48,7 +45,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: dvsa-drivetime-api
-          property: url
+        sync: false
