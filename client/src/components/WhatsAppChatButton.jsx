@@ -10,7 +10,7 @@ import { MessageCircle, X, Send } from 'lucide-react';
 export default function WhatsAppChatButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
-  const supportNumber = '+233200000000'; // Replace with your actual support number
+  const supportNumber = '+233249138687'; // DVSA DriveTime Saver support number
 
   const handleSend = () => {
     if (!message.trim()) return;
