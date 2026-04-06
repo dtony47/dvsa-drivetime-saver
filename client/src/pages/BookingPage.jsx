@@ -7,6 +7,7 @@ export default function BookingPage() {
   const { id } = useParams()
   const [booking, setBooking] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [paying, setPaying] = useState(false)
   const [paymentComplete, setPaymentComplete] = useState(false)
 
@@ -15,19 +16,8 @@ export default function BookingPage() {
       try {
         const res = await api.get(`/bookings/${id}`)
         setBooking(res.data)
-      } catch {
-        // Show sample booking if API not available
-        setBooking({
-          id,
-          centreName: 'Wood Green Test Centre',
-          centreAddress: '2A Western Road, Wood Green, N22 6UH',
-          date: '2026-05-15',
-          time: '09:30',
-          instructorName: 'John Smith',
-          status: 'confirmed',
-          paymentStatus: 'unpaid',
-          createdAt: new Date().toISOString()
-        })
+      } catch (err) {
+        setError(err.response?.data?.error || 'Booking not found')
       } finally {
         setLoading(false)
       }
@@ -38,29 +28,23 @@ export default function BookingPage() {
   const getFlowStep = () => {
     if (!booking) return 1
     if (paymentComplete || booking.paymentStatus === 'paid') return 4
-    if (booking.status === 'confirmed' && booking.paymentStatus !== 'paid') return 3
-    if (booking.instructorName) return 3
+    if (booking.status === 'confirmed') return 3
     return 2
   }
 
   const handlePayment = async () => {
     setPaying(true)
-    console.log('Initiating Stripe payment for booking:', id)
-    console.log('Amount: Mock payment - Stripe integration placeholder')
-
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
     try {
-      await api.patch(`/bookings/${id}/pay`)
+      const res = await api.patch(`/bookings/${id}/pay`)
+      setBooking(res.data)
+      setPaymentComplete(true)
     } catch {
-      // Mock success even if API is down
+      // Mock success for MVP
+      setPaymentComplete(true)
+      setBooking(prev => prev ? { ...prev, paymentStatus: 'paid' } : prev)
+    } finally {
+      setPaying(false)
     }
-
-    setPaymentComplete(true)
-    setBooking(prev => prev ? { ...prev, paymentStatus: 'paid' } : prev)
-    setPaying(false)
-    console.log('Payment complete for booking:', id)
   }
 
   const formatDate = (dateStr) => {
@@ -88,11 +72,11 @@ export default function BookingPage() {
     )
   }
 
-  if (!booking) {
+  if (error || !booking) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Booking Not Found</h1>
-        <p className="text-gray-500 mb-6">We couldn't find a booking with that ID.</p>
+        <p className="text-gray-500 mb-6">{error || "We couldn't find a booking with that ID."}</p>
         <Link to="/learner/dashboard" className="text-blue-600 hover:underline font-medium">
           Back to Dashboard
         </Link>
@@ -115,7 +99,6 @@ export default function BookingPage() {
 
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Booking Details</h1>
 
-      {/* Booking Flow Indicator */}
       <BookingFlow currentStep={getFlowStep()} />
 
       {/* Booking Info Card */}
@@ -123,7 +106,7 @@ export default function BookingPage() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{booking.centreName}</h2>
-            <p className="text-gray-500 text-sm mt-1">{booking.centreAddress}</p>
+            <p className="text-gray-500 text-sm mt-1">{booking.centreAddress || booking.centrePostcode}</p>
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.bg} ${status.text}`}>
             {status.label}
@@ -171,7 +154,7 @@ export default function BookingPage() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-orange-800">Payment Required</h3>
                   <p className="text-sm text-orange-700 mt-1">
-                    Please complete payment to confirm your booking. Your slot is reserved for 30 minutes.
+                    Complete payment to finalise your booking.
                   </p>
                 </div>
               </div>
@@ -190,7 +173,7 @@ export default function BookingPage() {
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
-                    Pay Now
+                    Pay Now (MVP - Mock Payment)
                   </>
                 )}
               </button>
@@ -208,21 +191,16 @@ export default function BookingPage() {
               <h3 className="font-semibold text-green-800 text-lg">Booking Confirmed!</h3>
               <p className="text-sm text-green-700 mt-1">
                 Your payment has been processed and your booking is confirmed.
-                You will receive a confirmation email shortly.
               </p>
             </div>
           </div>
         )}
 
-        {/* Status Timeline */}
+        {/* Timeline */}
         <div className="mt-8 pt-6 border-t border-gray-100">
           <h3 className="font-semibold text-gray-900 mb-4">Booking Timeline</h3>
           <div className="space-y-4">
-            <TimelineItem
-              label="Booking Created"
-              date={booking.createdAt}
-              completed
-            />
+            <TimelineItem label="Booking Created" date={booking.createdAt} completed />
             <TimelineItem
               label="Slot Reserved"
               date={booking.status !== 'pending' ? booking.createdAt : null}
@@ -233,12 +211,7 @@ export default function BookingPage() {
               date={paymentComplete || booking.paymentStatus === 'paid' ? new Date().toISOString() : null}
               completed={paymentComplete || booking.paymentStatus === 'paid'}
             />
-            <TimelineItem
-              label="Test Day"
-              date={booking.date}
-              completed={false}
-              isLast
-            />
+            <TimelineItem label="Test Day" date={booking.date} completed={false} isLast />
           </div>
         </div>
       </div>

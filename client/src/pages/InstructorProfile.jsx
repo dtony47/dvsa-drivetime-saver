@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 
 export default function InstructorProfile() {
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     name: '',
     adiNumber: '',
@@ -17,15 +19,17 @@ export default function InstructorProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await api.get('/instructor/profile')
+        const res = await api.get('/instructors/profile')
         const p = res.data
-        setForm({
-          name: p.name || '',
-          adiNumber: p.adiNumber || '',
-          coverageAreas: Array.isArray(p.coverageAreas) ? p.coverageAreas.join(', ') : p.coverageAreas || '',
-          hourlyRate: p.hourlyRate?.toString() || '',
-          bio: p.bio || ''
-        })
+        if (p) {
+          setForm({
+            name: p.name || '',
+            adiNumber: p.adiNumber || '',
+            coverageAreas: Array.isArray(p.coverageAreas) ? p.coverageAreas.join(', ') : p.coverageAreas || '',
+            hourlyRate: p.hourlyRate?.toString() || '',
+            bio: p.bio || ''
+          })
+        }
       } catch {
         // Profile might not exist yet
       } finally {
@@ -43,8 +47,13 @@ export default function InstructorProfile() {
     e.preventDefault()
     setError('')
     setSuccess('')
-    setSaving(true)
 
+    if (!form.name.trim()) {
+      setError('Name is required.')
+      return
+    }
+
+    setSaving(true)
     try {
       const payload = {
         name: form.name,
@@ -53,10 +62,10 @@ export default function InstructorProfile() {
         hourlyRate: parseFloat(form.hourlyRate) || 0,
         bio: form.bio
       }
-      await api.put('/instructor/profile', payload)
+      await api.put('/instructors/profile', payload)
       setSuccess('Profile saved successfully!')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save profile. Please try again.')
+      setError(err.response?.data?.error || 'Failed to save profile. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -94,7 +103,7 @@ export default function InstructorProfile() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
+              Full Name *
             </label>
             <input
               id="name"
@@ -104,6 +113,7 @@ export default function InstructorProfile() {
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900"
               placeholder="e.g. John Smith"
+              required
             />
           </div>
 
@@ -178,13 +188,22 @@ export default function InstructorProfile() {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving...' : 'Save Profile'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving...' : 'Save Profile'}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/instructor/dashboard')}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              Back
+            </button>
+          </div>
         </form>
       </div>
     </div>

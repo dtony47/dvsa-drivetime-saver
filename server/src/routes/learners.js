@@ -1,5 +1,5 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const pool = require('../config/db');
@@ -16,10 +16,7 @@ router.get('/profile', async (req, res, next) => {
       'SELECT * FROM learner_profiles WHERE user_id = $1',
       [req.user.id]
     );
-    if (result.rows.length === 0) {
-      return res.json({ profile: null });
-    }
-    res.json({ profile: result.rows[0] });
+    res.json(result.rows[0] || null);
   } catch (err) {
     next(err);
   }
@@ -58,7 +55,7 @@ router.post(
         ]
       );
 
-      res.json({ profile: result.rows[0] });
+      res.json(result.rows[0]);
     } catch (err) {
       next(err);
     }
@@ -85,7 +82,7 @@ router.post(
         [req.user.id, JSON.stringify(centres), date_from, date_to]
       );
 
-      res.status(201).json({ alert: result.rows[0] });
+      res.status(201).json(result.rows[0]);
     } catch (err) {
       next(err);
     }
@@ -99,10 +96,59 @@ router.get('/alerts', async (req, res, next) => {
       'SELECT * FROM slot_alerts WHERE learner_id = $1 ORDER BY created_at DESC',
       [req.user.id]
     );
-    res.json({ alerts: result.rows });
+    res.json(result.rows);
   } catch (err) {
     next(err);
   }
 });
+
+// PATCH /api/learners/alerts/:id/toggle
+router.patch(
+  '/alerts/:id/toggle',
+  [param('id').isInt()],
+  validate,
+  async (req, res, next) => {
+    try {
+      const existing = await pool.query(
+        'SELECT * FROM slot_alerts WHERE id = $1 AND learner_id = $2',
+        [req.params.id, req.user.id]
+      );
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ error: 'Alert not found' });
+      }
+
+      const newStatus = existing.rows[0].status === 'active' ? 'paused' : 'active';
+      const result = await pool.query(
+        'UPDATE slot_alerts SET status = $1 WHERE id = $2 RETURNING *',
+        [newStatus, req.params.id]
+      );
+
+      res.json(result.rows[0]);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// DELETE /api/learners/alerts/:id
+router.delete(
+  '/alerts/:id',
+  [param('id').isInt()],
+  validate,
+  async (req, res, next) => {
+    try {
+      const result = await pool.query(
+        'DELETE FROM slot_alerts WHERE id = $1 AND learner_id = $2 RETURNING id',
+        [req.params.id, req.user.id]
+      );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Alert not found' });
+      }
+      res.json({ deleted: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 module.exports = router;

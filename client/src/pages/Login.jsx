@@ -20,7 +20,7 @@ export default function Login() {
         navigate('/learner/dashboard')
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.')
+      setError(err.response?.data?.error || 'Login failed. Please check your credentials.')
     } finally {
       setLoading(false)
     }

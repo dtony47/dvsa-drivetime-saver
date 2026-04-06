@@ -5,10 +5,14 @@ const { getDistance, postcodeToCoords } = require('../utils/geocode');
 const router = express.Router();
 
 // GET /api/centres?postcode=NW7&radius=10
-router.get('/', async (req, res, next) => {
+// Also handles /api/centres/search via same logic
+router.get('/', handleSearch);
+router.get('/search', handleSearch);
+
+async function handleSearch(req, res, next) {
   try {
     const { postcode, radius = 10 } = req.query;
-    const maxRadius = parseFloat(radius);
+    const maxRadiusKm = parseFloat(radius) * 1.60934; // convert miles to km
 
     const result = await pool.query('SELECT * FROM test_centres ORDER BY name');
     let centres = result.rows;
@@ -16,23 +20,36 @@ router.get('/', async (req, res, next) => {
     if (postcode) {
       const coords = postcodeToCoords(postcode);
       if (coords) {
-        // Calculate distance for each centre and filter/sort by it
         centres = centres
           .map((centre) => {
-            const dist = getDistance(
+            const distKm = getDistance(
               coords.lat,
               coords.lon,
               parseFloat(centre.lat),
               parseFloat(centre.lon)
             );
-            return { ...centre, distance_km: Math.round(dist * 10) / 10 };
+            const distMiles = Math.round((distKm / 1.60934) * 10) / 10;
+            return { ...centre, distance: distMiles };
           })
-          .filter((centre) => centre.distance_km <= maxRadius)
-          .sort((a, b) => a.distance_km - b.distance_km);
+          .filter((centre) => centre.distance <= parseFloat(radius))
+          .sort((a, b) => a.distance - b.distance);
       }
     }
 
-    res.json({ centres, total: centres.length });
+    res.json(centres);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/centres/:id
+router.get('/:id', async (req, res, next) => {
+  try {
+    const result = await pool.query('SELECT * FROM test_centres WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Centre not found' });
+    }
+    res.json(result.rows[0]);
   } catch (err) {
     next(err);
   }

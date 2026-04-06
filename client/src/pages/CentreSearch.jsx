@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import CentreCard from '../components/CentreCard'
 
@@ -11,38 +12,52 @@ export default function CentreSearch() {
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const handleSearch = async (e) => {
     e.preventDefault()
-    if (!postcode.trim()) {
+    const trimmed = postcode.trim()
+    if (!trimmed) {
       setError('Please enter a postcode.')
       return
     }
+    if (!/^[A-Z]{1,2}\d[A-Z\d]?\s*\d?[A-Z]{0,2}$/i.test(trimmed)) {
+      setError('Please enter a valid UK postcode (e.g. N22 6UH, SW1A 1AA).')
+      return
+    }
+
     setError('')
     setLoading(true)
     setSearched(true)
 
     try {
       const res = await api.get('/centres/search', {
-        params: { postcode: postcode.trim(), radius }
+        params: { postcode: trimmed, radius }
       })
-      setCentres(res.data)
-    } catch (err) {
-      // If API is not running, show sample data
-      setCentres([
-        { id: '1', name: 'Wood Green Test Centre', address: '2A Western Road, Wood Green', postcode: 'N22 6UH', distance: 2.3 },
-        { id: '2', name: 'Hendon Test Centre', address: 'Aerodrome Road, Hendon', postcode: 'NW9 5QW', distance: 4.7 },
-        { id: '3', name: 'Mill Hill Test Centre', address: 'Bunns Lane, Mill Hill', postcode: 'NW7 2DX', distance: 6.1 },
-        { id: '4', name: 'Barnet Test Centre', address: '1 Quinta Drive, Barnet', postcode: 'EN5 3DF', distance: 7.8 },
-        { id: '5', name: 'Enfield Test Centre', address: '221 Baker Street, Enfield', postcode: 'EN1 3JY', distance: 8.4 },
-      ])
+      const data = Array.isArray(res.data) ? res.data : []
+      setCentres(data)
+    } catch {
+      setCentres([])
+      setError('Failed to search centres. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleSetAlert = (centre) => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
     navigate('/learner/alerts', { state: { centre } })
+  }
+
+  const handleBook = (centre) => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    navigate('/book', { state: { centre } })
   }
 
   return (
@@ -83,8 +98,8 @@ export default function CentreSearch() {
             >
               <option value="5">5 miles</option>
               <option value="10">10 miles</option>
-              <option value="15">15 miles</option>
-              <option value="20">20 miles</option>
+              <option value="25">25 miles</option>
+              <option value="50">50 miles</option>
             </select>
           </div>
 
@@ -135,9 +150,10 @@ export default function CentreSearch() {
             <div className="space-y-4">
               {centres.map((centre) => (
                 <CentreCard
-                  key={centre.id || centre._id}
+                  key={centre.id}
                   centre={centre}
                   onSetAlert={handleSetAlert}
+                  onBook={handleBook}
                 />
               ))}
             </div>
@@ -162,7 +178,7 @@ export default function CentreSearch() {
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Search for Test Centres</h3>
           <p className="text-gray-500 max-w-md mx-auto">
             Enter your postcode above to find DVSA driving test centres near you.
-            You can then set up alerts for available slots.
+            You can then set up alerts or book a test slot.
           </p>
         </div>
       )}

@@ -13,11 +13,14 @@ export default function InstructorDashboard() {
     const fetchData = async () => {
       try {
         const [profileRes, bookingsRes] = await Promise.allSettled([
-          api.get('/instructor/profile'),
+          api.get('/instructors/profile'),
           api.get('/bookings')
         ])
         if (profileRes.status === 'fulfilled') setProfile(profileRes.value.data)
-        if (bookingsRes.status === 'fulfilled') setBookings(bookingsRes.value.data)
+        if (bookingsRes.status === 'fulfilled') {
+          const data = bookingsRes.value.data
+          setBookings(Array.isArray(data) ? data : [])
+        }
       } catch {
         // Dashboard still works if API is not running
       } finally {
@@ -137,8 +140,8 @@ export default function InstructorDashboard() {
           <div className="space-y-4">
             {upcomingBookings.map((booking) => (
               <Link
-                key={booking._id || booking.id}
-                to={`/booking/${booking._id || booking.id}`}
+                key={booking.id}
+                to={`/booking/${booking.id}`}
                 className="block bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center justify-between">

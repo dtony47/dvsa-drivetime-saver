@@ -6,8 +6,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
+    allowedHosts: ['dvsa.elaman-group.com'],
     proxy: {
-      '/api': 'http://localhost:5000'
+      '/api': 'http://localhost:5001'
     }
   }
 })

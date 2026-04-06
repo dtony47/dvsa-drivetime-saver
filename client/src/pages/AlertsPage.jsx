@@ -1,21 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import api from '../lib/api'
 import AlertCard from '../components/AlertCard'
 
-const SAMPLE_CENTRES = [
-  { id: '1', name: 'Wood Green' },
-  { id: '2', name: 'Hendon' },
-  { id: '3', name: 'Mill Hill' },
-  { id: '4', name: 'Barnet' },
-  { id: '5', name: 'Enfield' },
-  { id: '6', name: 'Tottenham' },
-  { id: '7', name: 'Wanstead' },
-  { id: '8', name: 'Goodmayes' },
-]
-
 export default function AlertsPage() {
+  const location = useLocation()
   const [alerts, setAlerts] = useState([])
+  const [centres, setCentres] = useState([])
   const [loading, setLoading] = useState(true)
+  const [centresLoading, setCentresLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -27,12 +20,21 @@ export default function AlertsPage() {
 
   useEffect(() => {
     fetchAlerts()
+    fetchCentres()
   }, [])
+
+  // Pre-select centre if navigated from CentreSearch
+  useEffect(() => {
+    if (location.state?.centre) {
+      const c = location.state.centre
+      setSelectedCentres([String(c.id)])
+    }
+  }, [location.state])
 
   const fetchAlerts = async () => {
     try {
-      const res = await api.get('/alerts')
-      setAlerts(res.data)
+      const res = await api.get('/learners/alerts')
+      setAlerts(Array.isArray(res.data) ? res.data : [])
     } catch {
       // API might not be running
     } finally {
@@ -40,11 +42,31 @@ export default function AlertsPage() {
     }
   }
 
+  const fetchCentres = async () => {
+    try {
+      const res = await api.get('/centres')
+      const data = Array.isArray(res.data) ? res.data : []
+      setCentres(data)
+    } catch {
+      // Fallback sample centres
+      setCentres([
+        { id: 1, name: 'Wood Green' },
+        { id: 2, name: 'Hendon' },
+        { id: 3, name: 'Mill Hill' },
+        { id: 4, name: 'Barnet' },
+        { id: 5, name: 'Enfield' },
+      ])
+    } finally {
+      setCentresLoading(false)
+    }
+  }
+
   const toggleCentre = (centreId) => {
+    const id = String(centreId)
     setSelectedCentres(prev =>
-      prev.includes(centreId)
-        ? prev.filter(id => id !== centreId)
-        : [...prev, centreId]
+      prev.includes(id)
+        ? prev.filter(c => c !== id)
+        : [...prev, id]
     )
   }
 
@@ -69,20 +91,20 @@ export default function AlertsPage() {
     setCreating(true)
     try {
       const centreNames = selectedCentres.map(id =>
-        SAMPLE_CENTRES.find(c => c.id === id)?.name || id
+        centres.find(c => String(c.id) === id)?.name || id
       )
-      const res = await api.post('/alerts', {
+      const res = await api.post('/learners/alerts', {
         centres: centreNames,
-        dateFrom,
-        dateTo
+        date_from: dateFrom,
+        date_to: dateTo
       })
       setAlerts(prev => [res.data, ...prev])
       setSelectedCentres([])
       setDateFrom('')
       setDateTo('')
-      setSuccess('Alert created successfully! You will be notified when slots become available.')
+      setSuccess('Alert created! You\'ll see notifications here when slots become available.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create alert. Please try again.')
+      setError(err.response?.data?.error || 'Failed to create alert. Please try again.')
     } finally {
       setCreating(false)
     }
@@ -90,14 +112,13 @@ export default function AlertsPage() {
 
   const handleToggle = async (alertId) => {
     try {
-      const res = await api.patch(`/alerts/${alertId}/toggle`)
+      const res = await api.patch(`/learners/alerts/${alertId}/toggle`)
       setAlerts(prev => prev.map(a =>
-        (a._id || a.id) === alertId ? { ...a, status: res.data.status } : a
+        a.id === alertId ? { ...a, status: res.data.status } : a
       ))
     } catch {
-      // Toggle locally as fallback
       setAlerts(prev => prev.map(a =>
-        (a._id || a.id) === alertId
+        a.id === alertId
           ? { ...a, status: a.status === 'active' ? 'paused' : 'active' }
           : a
       ))
@@ -107,12 +128,15 @@ export default function AlertsPage() {
   const handleDelete = async (alertId) => {
     if (!window.confirm('Are you sure you want to delete this alert?')) return
     try {
-      await api.delete(`/alerts/${alertId}`)
-      setAlerts(prev => prev.filter(a => (a._id || a.id) !== alertId))
+      await api.delete(`/learners/alerts/${alertId}`)
     } catch {
-      setAlerts(prev => prev.filter(a => (a._id || a.id) !== alertId))
+      // Delete locally anyway
     }
+    setAlerts(prev => prev.filter(a => a.id !== alertId))
   }
+
+  // Show a subset of centres for the picker (max 12)
+  const pickerCentres = centres.slice(0, 12)
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -143,22 +167,29 @@ export default function AlertsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Select Test Centres
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {SAMPLE_CENTRES.map(centre => (
-                <button
-                  key={centre.id}
-                  type="button"
-                  onClick={() => toggleCentre(centre.id)}
-                  className={`py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                    selectedCentres.includes(centre.id)
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  {centre.name}
-                </button>
-              ))}
-            </div>
+            {centresLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                Loading centres...
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {pickerCentres.map(centre => (
+                  <button
+                    key={centre.id}
+                    type="button"
+                    onClick={() => toggleCentre(centre.id)}
+                    className={`py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all truncate ${
+                      selectedCentres.includes(String(centre.id))
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    {centre.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -213,7 +244,7 @@ export default function AlertsPage() {
           <div className="space-y-4">
             {alerts.map((alert) => (
               <AlertCard
-                key={alert._id || alert.id}
+                key={alert.id}
                 alert={alert}
                 onToggle={handleToggle}
                 onDelete={handleDelete}

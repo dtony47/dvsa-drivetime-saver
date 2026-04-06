@@ -9,6 +9,7 @@ import AlertsPage from './pages/AlertsPage'
 import InstructorDashboard from './pages/InstructorDashboard'
 import InstructorProfile from './pages/InstructorProfile'
 import CentreSearch from './pages/CentreSearch'
+import BookTest from './pages/BookTest'
 import BookingPage from './pages/BookingPage'
 
 export default function App() {
@@ -33,6 +34,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['learner']}>
               <AlertsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/book"
+          element={
+            <ProtectedRoute allowedRoles={['learner']}>
+              <BookTest />
             </ProtectedRoute>
           }
         />

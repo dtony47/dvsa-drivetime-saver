@@ -2,8 +2,7 @@ export default function AlertCard({ alert, onToggle, onDelete }) {
   const statusConfig = {
     active: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500', label: 'Active' },
     paused: { bg: 'bg-yellow-50', text: 'text-yellow-700', dot: 'bg-yellow-500', label: 'Paused' },
-    triggered: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500', label: 'Triggered' },
-    expired: { bg: 'bg-gray-50', text: 'text-gray-500', dot: 'bg-gray-400', label: 'Expired' }
+    found: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500', label: 'Found' },
   }
 
   const status = statusConfig[alert.status] || statusConfig.active
@@ -17,6 +16,10 @@ export default function AlertCard({ alert, onToggle, onDelete }) {
     })
   }
 
+  // Handle both snake_case (from DB) and camelCase field names
+  const dateFrom = alert.date_from || alert.dateFrom
+  const dateTo = alert.date_to || alert.dateTo
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-start justify-between mb-4">
@@ -28,7 +31,7 @@ export default function AlertCard({ alert, onToggle, onDelete }) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => onToggle?.(alert._id || alert.id)}
+            onClick={() => onToggle?.(alert.id)}
             className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
               alert.status === 'active'
                 ? 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100'
@@ -38,7 +41,7 @@ export default function AlertCard({ alert, onToggle, onDelete }) {
             {alert.status === 'active' ? 'Pause' : 'Resume'}
           </button>
           <button
-            onClick={() => onDelete?.(alert._id || alert.id)}
+            onClick={() => onDelete?.(alert.id)}
             className="text-sm font-medium px-3 py-1.5 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
           >
             Delete
@@ -61,7 +64,7 @@ export default function AlertCard({ alert, onToggle, onDelete }) {
         <div className="flex items-center gap-6">
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">From</p>
-            <p className="text-sm text-gray-900 font-medium">{formatDate(alert.dateFrom)}</p>
+            <p className="text-sm text-gray-900 font-medium">{formatDate(dateFrom)}</p>
           </div>
           <div>
             <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,7 +73,7 @@ export default function AlertCard({ alert, onToggle, onDelete }) {
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">To</p>
-            <p className="text-sm text-gray-900 font-medium">{formatDate(alert.dateTo)}</p>
+            <p className="text-sm text-gray-900 font-medium">{formatDate(dateTo)}</p>
           </div>
         </div>
       </div>

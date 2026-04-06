@@ -13,12 +13,18 @@ export default function LearnerDashboard() {
     const fetchData = async () => {
       try {
         const [alertsRes, bookingsRes] = await Promise.allSettled([
-          api.get('/alerts'),
+          api.get('/learners/alerts'),
           api.get('/bookings')
         ])
-        if (alertsRes.status === 'fulfilled') setAlerts(alertsRes.value.data)
-        if (bookingsRes.status === 'fulfilled') setBookings(bookingsRes.value.data)
-      } catch (err) {
+        if (alertsRes.status === 'fulfilled') {
+          const data = alertsRes.value.data
+          setAlerts(Array.isArray(data) ? data : [])
+        }
+        if (bookingsRes.status === 'fulfilled') {
+          const data = bookingsRes.value.data
+          setBookings(Array.isArray(data) ? data : [])
+        }
+      } catch {
         // Dashboard still works if API is not running
       } finally {
         setLoading(false)
@@ -131,18 +137,18 @@ export default function LearnerDashboard() {
           </Link>
 
           <Link
-            to="/centres"
+            to="/book"
             className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow group"
           >
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
                 <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Find Instructor</p>
-                <p className="text-sm text-gray-500">Browse local driving instructors</p>
+                <p className="font-semibold text-gray-900">Book a Test</p>
+                <p className="text-sm text-gray-500">Reserve a test slot</p>
               </div>
             </div>
           </Link>
@@ -160,8 +166,8 @@ export default function LearnerDashboard() {
           <div className="space-y-4">
             {upcomingBookings.map((booking) => (
               <Link
-                key={booking._id || booking.id}
-                to={`/booking/${booking._id || booking.id}`}
+                key={booking.id}
+                to={`/booking/${booking.id}`}
                 className="block bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center justify-between">
@@ -196,8 +202,8 @@ export default function LearnerDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <p className="text-gray-500">No upcoming bookings yet.</p>
-            <Link to="/centres" className="text-blue-600 hover:underline text-sm font-medium mt-1 inline-block">
-              Search for test centres
+            <Link to="/book" className="text-blue-600 hover:underline text-sm font-medium mt-1 inline-block">
+              Book a test
             </Link>
           </div>
         )}
